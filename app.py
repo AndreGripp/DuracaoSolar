@@ -2,10 +2,10 @@ import dash
 from dash import dcc, html, Input, Output, callback
 import plotly.graph_objects as go
 import numpy as np
-from math import cos, sin, acos, radians, tan
+from math import cos, sin, tan, acos, radians, pi, fabs
 
 app = dash.Dash(__name__)
-server = app.server
+server = app.server  # Necessário para o deploy no Render
 
 # Layout do app
 app.layout = html.Div([
@@ -13,57 +13,41 @@ app.layout = html.Div([
             style={'textAlign': 'center', 'color': '#2c3e50'}),
     
     html.Div([
-        # Controle deslizante
-        html.Div([
-            html.Label("Selecione a latitude:", style={'fontWeight': 'bold'}),
-            dcc.Slider(
-                id='latitude-slider',
-                min=-90,
-                max=90,
-                step=1,
-                value=0,
-                marks={i: f'{i}°' for i in range(-90, 91, 15)},
-            )
-        ], style={'width': '80%', 'margin': '20px auto'}),
-        
-        # Mapa com linha de latitude
-        dcc.Graph(id='world-map', style={'height': '400px'}),
-        
-        # Gráfico de duração
-        dcc.Graph(id='sunlight-graph', style={'height': '400px'})
-    ])
+        html.Label("Selecione a latitude:", style={'fontWeight': 'bold'}),
+        dcc.Slider(
+            id='latitude-slider',
+            min=-90,
+            max=90,
+            step=1,
+            value=0,
+            marks={i: f'{i}°' for i in range(-90, 91, 15)},
+        )
+    ], style={'width': '80%', 'margin': '20px auto'}),
+    
+    dcc.Graph(id='world-map'),
+    dcc.Graph(id='sunlight-graph')
 ])
 
-# Função para criar o mapa com linha de latitude
+# Função para criar o mapa
 def criar_mapa(latitude):
     fig = go.Figure()
-    
-    # Linha de latitude (vermelha)
     fig.add_trace(go.Scattergeo(
         lon = np.arange(-180, 181, 1),
         lat = [latitude] * 361,
         mode = 'lines',
-        line = dict(width=2, color='red'),
-        name = f'Latitude {latitude}°'
+        line = dict(width=2, color='red')
     ))
-    
-    # Configurações do mapa
     fig.update_geos(
         projection_type="natural earth",
         showcountries=True,
         landcolor="lightgray",
         oceancolor="azure",
-        showocean=True
+	showocean=True
     )
-    
-    fig.update_layout(
-        title_text=f'Linha de Latitude: {latitude}°',
-        margin={"r":0,"t":40,"l":0,"b":0}
-    )
-    
+    fig.update_layout(title_text=f'Linha de Latitude: {latitude}°')
     return fig
 
-# Função para calcular a duração do dia
+# SUA FÓRMULA PERSONALIZADA
 def calcular_horas_luz(latitude_graus, dia_ano):
     # Passo 1: Converter latitude para radianos
     latitude = radians(latitude_graus)
@@ -71,8 +55,8 @@ def calcular_horas_luz(latitude_graus, dia_ano):
     # Passo 2: Calcular Raio
     Raio = cos(latitude)
     
-    # Passo 3: Calcular Declin
-    Declin = radians(23.45*sin((dia_ano-81)*2*pi/365))
+    # Passo 3: Calcular Declinação
+    Declin = radians(23.45*sin((dia_ano-80)*2*pi/365))
     
     # Passo 4: Calcular Corda
     Corda = sin(latitude) * tan(Declin)
@@ -90,17 +74,18 @@ def calcular_horas_luz(latitude_graus, dia_ano):
     
     return HLuz
 
-# Callbacks
+
+# Callback
 @callback(
     [Output('world-map', 'figure'),
      Output('sunlight-graph', 'figure')],
     [Input('latitude-slider', 'value')]
 )
 def update_graph(latitude):
-    # Atualiza o mapa
+    # Mapa (mantido igual)
     mapa = criar_mapa(latitude)
     
-    # Atualiza o gráfico de duração
+    # Gráfico 
     dias = np.arange(1, 366)
     horas_luz = [calcular_horas_luz(latitude, dia) for dia in dias]
     
@@ -109,10 +94,10 @@ def update_graph(latitude):
         x=dias,
         y=horas_luz,
         mode='lines',
-        line=dict(color='orange', width=3),
-        name='Horas de luz solar'
+        line=dict(color='orange', width=3)
     ))
     
+    # Configurações do gráfico (mantidas)
     fig.update_layout(
         title=f'Duração Diária da Luz Solar (Latitude: {latitude}°)',
         xaxis_title='Dia do Ano',
@@ -121,15 +106,21 @@ def update_graph(latitude):
         template='plotly_white'
     )
     
-    # Adiciona marcações de eventos astronômicos
-    for dia, nome in [(80, 'Equinócio Março'), (172, 'Solstício Junho'), 
-                     (266, 'Equinócio Setembro'), (356, 'Solstício Dezembro')]:
+    # Linhas para eventos astronômicos (mantidas)
+    eventos = {
+        'Equinócio Março': 80,
+        'Solstício Junho': 172,
+        'Equinócio Setembro': 266,
+        'Solstício Dezembro': 356
+    }
+    
+    for nome, dia in eventos.items():
         fig.add_vline(
             x=dia, line_width=1, line_dash="dash",
             annotation_text=nome, annotation_position="top right"
         )
     
     return mapa, fig
-    
+
 if __name__ == '__main__':
     app.run(debug=True)
