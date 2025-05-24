@@ -116,6 +116,6 @@ def update_graph(latitude):
         )
     
     return mapa, fig
-
+server = app.server
 if __name__ == '__main__':
     app.run(debug=True)
