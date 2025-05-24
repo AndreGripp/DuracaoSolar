@@ -3,9 +3,9 @@ from dash import dcc, html, Input, Output, callback
 import plotly.graph_objects as go
 import numpy as np
 from math import cos, sin, acos, radians, tan
-import pandas as pd
 
 app = dash.Dash(__name__)
+server = app.server
 
 # Layout do app
 app.layout = html.Div([
@@ -64,17 +64,31 @@ def criar_mapa(latitude):
     return fig
 
 # Função para calcular a duração do dia
-def calcular_duracao_dia(latitude_graus, dia_ano):
+def calcular_horas_luz(latitude_graus, dia_ano):
+    # Passo 1: Converter latitude para radianos
     latitude = radians(latitude_graus)
-    declinacao_solar = radians(23.45) * sin(radians(360 * (284 + dia_ano) / 365))
     
-    if abs(latitude) >= radians(66.55):  # Regiões polares
-        if (latitude > 0 and declinacao_solar > 0) or (latitude < 0 and declinacao_solar < 0):
-            return 24 if abs(latitude + declinacao_solar) >= radians(90) else 0
+    # Passo 2: Calcular Raio
+    Raio = cos(latitude)
     
-    arg = -tan(latitude) * tan(declinacao_solar)
-    arg = max(min(arg, 1), -1)
-    return 24 * acos(arg) / np.pi
+    # Passo 3: Calcular Declin
+    Declin = radians(23.45*sin((dia_ano-81)*2*pi/365))
+    
+    # Passo 4: Calcular Corda
+    Corda = sin(latitude) * tan(Declin)
+    Corda = max(min(Corda, 1), -1)  # Limitando entre -1 e 1    
+    
+    # Passo 5: Calcular horas de luz
+    razao = Corda / Raio
+    
+    if razao <= -1:
+        HLuz = 0
+    elif razao >= 1:
+        HLuz = 24
+    else:
+        HLuz = 24 * (1 - (2 * acos(razao) / (2 * pi)))
+    
+    return HLuz
 
 # Callbacks
 @callback(
@@ -88,12 +102,12 @@ def update_graph(latitude):
     
     # Atualiza o gráfico de duração
     dias = np.arange(1, 366)
-    horas_sol = [max(0, min(24, calcular_duracao_dia(latitude, dia))) for dia in dias]
+    horas_luz = [calcular_horas_luz(latitude, dia) for dia in dias]
     
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=dias,
-        y=horas_sol,
+        y=horas_luz,
         mode='lines',
         line=dict(color='orange', width=3),
         name='Horas de luz solar'
@@ -103,7 +117,7 @@ def update_graph(latitude):
         title=f'Duração Diária da Luz Solar (Latitude: {latitude}°)',
         xaxis_title='Dia do Ano',
         yaxis_title='Horas de Luz Solar',
-        yaxis_range=[0, 24],
+        yaxis_range=[0, 25],
         template='plotly_white'
     )
     
@@ -116,6 +130,6 @@ def update_graph(latitude):
         )
     
     return mapa, fig
-server = app.server
+    
 if __name__ == '__main__':
     app.run(debug=True)
