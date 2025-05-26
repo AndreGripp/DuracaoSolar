@@ -56,7 +56,7 @@ def calcular_horas_luz(latitude_graus, dia_ano):
     Raio = cos(latitude)
     
     # Passo 3: Calcular Declinação
-    Declin = radians(23.45*sin((dia_ano-80)*2*pi/365))
+    Declin = radians(23.45*sin((dia_ano-81)*2*pi/365))
     
     # Passo 4: Calcular Corda
     Corda = sin(latitude) * tan(Declin)
@@ -108,10 +108,10 @@ def update_graph(latitude):
     
     # Linhas para eventos astronômicos (mantidas)
     eventos = {
-        'Equinócio Março': 80,
-        'Solstício Junho': 172,
-        'Equinócio Setembro': 266,
-        'Solstício Dezembro': 356
+        'Equinócio Março': 81,
+        'Solstício Junho': 172.5,
+        'Equinócio Setembro': 264,
+        'Solstício Dezembro': 355
     }
     
     for nome, dia in eventos.items():
